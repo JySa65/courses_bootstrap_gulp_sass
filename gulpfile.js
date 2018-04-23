@@ -1,14 +1,32 @@
 'use strict'
 
 // requerimos las dependencia
-const gulp = require('gulp')
-const browserSync = require('browser-sync')
-const sass = require('gulp-sass')
+const gulp = require('gulp');
+const browserSync = require('browser-sync');
+const sass = require('gulp-sass');
+const imagemin = require('gulp-imagemin');
+const babelify = require('babelify');
+const browserify = require('browserify');
+const source = require('vinyl-source-stream');
+
+
+gulp.task('imagemin', () => {
+	return gulp.src(['dev/img/**/*', 'dev/img/*'])        
+	.pipe(imagemin({
+		progressive: true,
+		interlaced: true,
+		svgoPlugins: [{removeUnknownsAndDefaults: false}, 
+			{cleanupIDs: false}, {removeViewBox: true}]
+	}))
+	.pipe(gulp.dest('src/img/'))
+	.pipe(browserSync.stream());
+});
 
 gulp.task('sass', () => {
 	return gulp.src([
 		'node_modules/bootstrap/scss/bootstrap.scss',
-		'src/scss/*.scss'
+		'dev/scss/*.scss',
+		'dev/scss/**/*.scss'
 		])
 	.pipe(sass({
 		outputStyle:'compressed'
@@ -26,7 +44,14 @@ gulp.task('js', () => {
 	.pipe(gulp.dest('src/js'))
 	.pipe(browserSync.stream());
 });
-
+ 
+gulp.task('jss', () => {
+	let bundler = browserify('dev/js/main.js').transform(babelify)
+	return bundler.bundle()
+	.pipe(source('main.js'))
+	.pipe(gulp.dest('src/js'))
+	.pipe(browserSync.stream());
+})
 
 gulp.task('font-awesome', () =>{
 	return gulp.src([
@@ -41,18 +66,23 @@ gulp.task('fonts', () => {
 });
 
 
-gulp.task('serve', ['sass'], () => {
+gulp.task('serve', ['sass', 'imagemin', 'jss'], () => {
 	browserSync.init({
 		server: './src/'
 	});
 
 	gulp.watch([
 		'node_modules/bootstrap/scss/bootstrap.scss',
-		'src/scss/*.scss'
+		'dev/scss/*.scss',
+		'dev/scss/**/*.scss'
 		], ['sass']);
 
-	gulp.watch('src/*.html').on('change', browserSync.reload);
+	gulp.watch([
+		'dev/js/main.js',
+		'dev/js/**'
+		], ['jss']);
 
+	gulp.watch('src/*.html').on('change', browserSync.reload);
 });
 
 gulp.task('default', ['js', 'serve', 'font-awesome', 'fonts'])
